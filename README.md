@@ -1,4 +1,4 @@
-ÖverDOS operating system for Algorithmics 4032 implemented as a school project at Uppsala university in 2002.
+ÖverDOS operating system for Algorithmics P4032 implemented as a school project at Uppsala university in 2002.
 Emulator for Algorithmics 4032 by Andreas Westling.
 
 Emulator ported to Javascript in 2026.
