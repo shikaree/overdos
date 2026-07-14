@@ -1,0 +1,42 @@
+##################################################
+# Crap						 #
+# This contains only one instruction,		 #
+# a jump to the real interrupt handler		 #
+# Since this needs to be written to memory by	 #
+# some other piece of code, it would probably	 #
+# make more sense to hardcode a couple of sw	 #
+# instructions somewhere...			 #
+##################################################
+
+	.globl inthandlerjump
+	.globl inthandler_init
+	.extern inthandler 4
+	.text
+	.set nomove
+
+inthandlerjump:	
+	j inthandler
+
+inthandler_init:
+	li $t0,0xA0000180
+	lw $t1,inthandlerjump
+	lw $t2,inthandlerjump+4
+	lw $t3,inthandlerjump+8
+	sw $t1,0($t0)
+	sw $t2,4($t0)
+	sw $t3,8($t0)
+	addi $t0,$t0,-0x80
+	sw $t1,0($t0)
+	sw $t2,4($t0)
+	sw $t3,8($t0)
+	addi $t0,$t0,-0x80
+	sw $t1,0($t0)
+	sw $t2,4($t0)
+	sw $t3,8($t0)
+	addi $t0,$t0,-0x80
+	sw $t1,0($t0)
+	sw $t2,4($t0)
+	sw $t3,8($t0)
+	jr $ra
+	.set move	
+

@@ -1,0 +1,6 @@
+# Store text files with LF in the repo and check them out with LF on every
+# platform, so the sources build identically on Linux, macOS and Windows.
+* text=auto eol=lf
+
+# The boot image is a binary MIPS ELF - never apply line-ending conversion.
+bootfile binary

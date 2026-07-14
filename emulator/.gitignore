@@ -1,0 +1,12 @@
+# Build output
+/overdos
+/overdos.exe
+*.o
+*.obj
+
+# Editor / OS junk
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

@@ -1,0 +1,162 @@
+ÖverDOS LibOS documentation
+
+This document describes the functions contained in lib/
+
+All functions in ansi.h (memcpy, bcmp, strcat, strncat, strcmp,
+strncmp, strcpy, strncpy, strlen, strcasecmp, srand, rand, is*,
+to*, atoi and qsort) works just like the corresponding functions
+in libc. The exception is getchar, which doesn't wait for newline
+before returning.
+
+The functions in ansi-mod.h are derived, modified or completely
+different from all functions in libc
+
+I do not document bitarrayops and salloc-functions, becouse
+bitarrayops are only used by the kernel and salloc is not used
+at all (should be considered an example).
+
+Functions not used by the kernel and the applications should
+not be considered stable. Don't use them!
+
+These are (amongst others):
+
+bcmp, memmove, to*
+
+Also, if using memcpy, don't use any special optimization - it
+will cause alignment problems. 
+
+
+
+Ansi-mod.h functions
+--------------------
+
+
+int itoa(const char *s, long long int i)
+ Converts i to a string. i may be a 33-bit signed or unsigned 
+ value and the buffer s needs to be AT LEAST 12 characters big
+
+ The resulting buffer s is null-terminated.
+
+
+
+int itoa_wrap(const char *s, int i)
+ Is a wrapper-function to itoa only taking 32-bit values.
+ Added to make assembly-programming easier (long long ints are
+ passed in either even or odd number $a-registers, which is 
+ not the way GCC does it on other systems).
+
+
+
+int getch(void)
+ Performs non-blocking receive on the process stdin. It returns
+ ERR (-1) if no key was waiting.
+
+
+
+int getcharne(void)
+ Works like getchar() (blocking receive on stdin) but does not 
+ echo to the screen.
+
+
+
+int itoahex(char *msg, unsigned int i)
+ Converts a number to its hexadecimal value. The buffer needs to be
+ 12 bytes long and is automatically null-terminated.
+
+
+
+int vsnprintf(char *str, size_t size, const char *format, va_list ap)
+ Is the main print-function. This function is called by all function
+ using formatting. It supports these formatting characters:
+
+ %0 - Clear screen.
+ %1 - Set forground color.
+ %2 - Set background color.
+ %3 - Set attribute.
+ %@ - Goto x,y coordinate on screen (use xy-macro in ansi-mod.h).
+ %c, %d/%i, %s, %% - As standard vsnprintf.
+ 
+ Formatting is supported by using the %. - formatting character.
+ Read vsnprintf.c for more information about formatting.
+ 
+ No other formatting characters are supported.
+
+ Otherwise the parameters in vsnprintf works just like standard
+ vsnprintf.
+
+
+
+int _printf(const char *format, ...)
+ Works just like standard printf. No more than PRINTF_BUFFER characters
+ may be outputted.
+
+ cprintf and printf are aliases for this function.
+
+
+
+int mprintf(int mbox_nr,  const  char  *format,  ...);
+ Works just like printf, but the output is not put into the stdout-
+ mailbox but the mailbox specified. 
+ 
+ The result is null-terminated.
+
+
+
+int sprintf(char *str, const char *format, ...)
+ Works just like printf, but the output is put into the specified
+ buffer.
+
+ The buffer must be big enough to take the output or the behaviour
+ of the system is unspecified.
+ 
+ The result is null-terminated.
+ 
+ This function is DANGEROUS, use with care or not at all.
+
+
+
+int snprintf(char *str, size_t size, const  char  *format, ...)
+ Works like sprintf but puts no more than size characters into the
+ buffer. 
+
+ The buffer must be big enough to take the output or the behaviour
+ of the system is unspecified.
+
+ The result is null-terminated if the resulting buffer size doesn't equal
+ the specified size.
+ 
+
+
+int readline(char *line, char *prompt, char *tabcomp[])
+ Gets a line from the keyboard.
+
+ Line is the buffer to return the resulting line to, prompt is the
+ prompt to show, and tabcomp is a null-terminated list of strings
+ containing strings to tabcomplete with.
+
+ Line must be at least READLINE_SCREEN_WIDTH bytes big.
+
+ Returns the length of line.
+
+ None of the arguments may be null.
+
+
+
+int readline_getarg(char *argument, char *line)
+ Takes a line read by readline and returns the first argument in 
+ line. The argument is removed from line.
+ The resulting argument is left and right-trimmed from spaces.
+
+ Argument must be at least READLINE_SCREEN_WIDTH bytes long.
+ Returns length of argument.
+
+ If this function returns 0, no more arguments are in line.
+ 
+ None of the arguments may be null.
+
+
+
+ 
+
+
+

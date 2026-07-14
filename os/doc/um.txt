@@ -1,0 +1,63 @@
+ÖverDOS - User's manual
+
+Booting: load the ÖverDOS bootfile on a Algorithmics P4032 mips computer by 
+typing, when connected to the mips, boot /.../bootfile, where ... is the path 
+to the ÖverDOS bootfile. Then type "g".
+
+Using ÖverDOS is centered around the command interpreter Bärs, or rather the
+extended version Visky. Bärs and Visky are described in the ÖverDOS 
+application documentation.
+
+Focus switch: the process that is allowed to perform i/o is said be in focus. 
+You select wich process that shall be in focus by pressing ` on your keyboard,
+the button next to backslash. 
+
+You can always start a new Visky (command interpreter) by pressing ', 
+the button left of return. This can be very handy if you accidentially kill
+your command interpreter.
+
+It's strongly recommended that you run ÖverDOS in a terminal program that 
+supports ansi colours, such as Eterm. Running ÖverDOS in a terminal that does
+not support ansi colours, such as xterm, will work too but is not recommended.
+
+
+Technical Specifications
+
+Number of supported processes decided at compile time, theoretical maximum of 
+2 billion processes (but is limitided by availible memory).
+
+Theoretical maximum number of mailboxes 2 billion.
+
+Supports full vt-100 emulation.
+
+Partial Spim compatibility.
+
+
+ÖverDOS team presentation 
+
+Juan Pablo Fernandez Alvarez - Mailboxes and related functions, system clock, 
+			       Bärs, syscalls, visky
+
+Johannes Holmberg - tetris, bordello, interrupt handler, spim compatibility,
+		    tic, syscalls, lib, bluescreen
+
+Magnus Jansson - prodcons, pcbs, syscalls, klik & play (unfinished)
+
+Martin Kjellin - project manager, pcbs and related functions, Bärs, syscall,
+		 visky, lib
+
+Jesper Lundgren - scheduler, i/o, syscalls, init, gissa ett tal (unfinished)
+
+Andreas Westling - scheduler, lib functions, mailboxes, nibbles, phil, i/o,
+		   led display driver, syscall, visky, top
+
+
+
+
+
+
+
+
+
+
+

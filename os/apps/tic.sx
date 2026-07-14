@@ -1,0 +1,359 @@
+# Tic Tac Toe
+# Johannes Holmberg (josk8571@csd.uu.se)
+# Digitalteknik & Datorarkitektur DV1
+
+# This algorithm seems to be unbeatable...
+# For reasons beyond anyone's comprehension some functions get the
+# addresses of strings through the a-registers, and some (most) just grab
+# them directly using la.
+
+	.data
+
+field:	.byte 32,32,32,32,32,32,32,32,32
+hej:	.asciiz "Hej! Här ska spelas luffarschack!\n"
+hur:	.asciiz "Hur många spelare? (1/2) "
+ge:	.asciiz ", ge ditt drag: "
+grattis:.asciiz "Grattis "
+vunnit:	.asciiz ", du har vunnit!!\n"
+fel:	.asciiz ", du gav felaktig indata!\n\n"
+lika:	.asciiz "\n\nOavgjort!\n"
+igen:	.asciiz "Spela igen? (j/n) "
+line:	.asciiz "\n  -------\n"
+coor:	.asciiz "\n\n   a b c"
+test:	.byte 0,1,2, 3,4,5, 6,7,8, 0,3,6, 1,4,7, 2,5,8, 0,4,8, 2,4,6 
+
+# Easy-to-follow explanation:	
+#field:    test:	
+#
+#-------   --- ||| \     /
+#|0|1|2|   --- |||  \   /
+#-------   --- |||   \ /
+#|3|4|5|
+#-------
+#|6|7|8|
+#-------
+	
+	.text
+	.globl main_tic
+
+main_tic:
+	addi $sp,$sp,-4
+	sw $ra,0($sp)		# Save return address.
+	la $a0,hej		# Get address of "Hej..."-message.
+	jal print		# Print message.
+	
+
+entry:	jal clearfield		# Clear the playing field.
+	jal getplayers		# Get number of players.
+	ori $s5,$v0,0		# Put the number in $s5
+	ori $s6,$0,0x58		# Store ascii value X (computer) in $s6
+	ori $a1,$0,0xA
+	jal putch
+
+	ori $s0,$0,0x4F		# O starts.
+	ori $s1,$0,9		# 9 moves to go...
+	
+loop:	jal drawfield		# Draw the playing field.
+	ori $a1,$s0,0
+	la $a3,field
+	jal getmove		# Get coordinates and update playing field.
+
+looop:	addi $a0,$s0,0		#
+	addi $a1,$a0,0		# Look for three of the same ($s0 = X or O).
+	addi $a2,$a0,0		#
+	jal findcombination	# Check if player $s0 has won.
+	bne $v0,$0,winner	# If $v0!=0 player $s0 has won.
+	
+	addi $s1,$s1,-1
+	beq $s1,$0,draw		# No moves left and no winner = draw.
+	
+	xori $s0,$s0,0x17
+	bne $s5,$0,loop		# If two humans are playing, loop.
+	bne $s6,$s0,loop	# Loop unless the computer is up.
+	ori $a0,$s6,0		# 'X'
+	ori $a1,$s1,0		# Number of moves left.
+	jal wopr		# Invoke the fabulous artificial intelligence!
+	slt $t6,$0,$v0		
+	beq $t6,$0,addsome	# Interpret the AI's response.
+	addi $v0,$v0,-1		# The computer is going to win...
+	j updfld		#
+addsome:addi $v0,$v0,9		# We're headed for a tie.
+updfld:	sb $s6,field($v0)	# Draw the computer's move.
+	j looop			# Check if the computer has won and stuff...
+
+winner: jal drawfield
+	la $a0,grattis		# Print "Grattis".
+	jal print
+	or $a1,$s0,$0
+	jal putch		# Print character of winning player (X/O).
+	la $a0,vunnit
+	jal print
+	j playagain
+draw:	la $a0,lika		
+	jal print		# Print "Oavgjort!".
+
+playagain:
+	la $a0,igen		# Print "Spela igen...".
+	jal print
+	jal getche
+	addi $v0,$v0,-0x6A
+	bne $v0,$0,quit		# If it's not 'j', quit.
+	ori $a1,$0,0xA
+	jal putch
+	jal putch		# Linefeed...
+	j entry
+quit:	lw $ra,0($sp)
+	addi $sp,$sp,4
+	jr $ra 
+
+/*
+# wopr - The marvelous AI!
+
+# How it works:
+# The computer tries every possible move for both players and picks the
+# best one. If the computer realises that it is going to lose it will return
+# an illegal move. Fortunately, it can't lose.
+
+# Arguments:
+# $a0 - 'X' or 'O'.
+# $a1 - The number of moves left (never higher than 8).
+
+# Return value ($a0)
+# -255      - There is no way to win (no move specified).
+# 1-9       - Pick this square (8=3b 9=3c...) in order to win.
+# (-1)-(-9) - Add 9 to the value and use this square to get a tie.
+*/
+wopr:	addi $sp,$sp,-4
+	sw $ra,0($sp)		# Save the return address.
+	addi $t7,$0,-255	# So far, no good moves have been found.
+	bne $a1,$0,notie	# If there are no moves left it's a tie.
+	addi $t7,$0,-20		# -20 = tie.
+	j wopret
+notie:	ori $t0,$0,9		# Start loop index at 9.
+woprl:	addi $t0,$t0,-1		# Decrement...
+	lb $t1,field($t0)	# See if this square is free.
+	addi $t1,$t1,-0x20
+	beq $t1,$0,try		
+	j crap			# If not, try again.
+try:	sb $a0,field($t0)	# If it's free, take it.
+	addi $sp,$sp,-8
+	sw $a1,4($sp)		# Push $a1.
+	sw $t0,0($sp)		# Push $t0. These will be destroyed.
+	ori $a1,$a0,0
+	ori $a2,$a0,0
+	jal findcombination	# See if this was a winning move.
+	lw $t0,0($sp)		# (Pop $t0.)
+	lw $a1,4($sp)		# (Pop $a1.)
+	addi $sp,$sp,8
+	beq $v0,$0,notwon	# If not, skip ahead some.
+	addi $t1,$0,0x20	# If the last move won the game,
+	sb $t1,field($t0)	# delete it from the playing field,
+	addi $t7,$t0,1		# and return it (+1).
+	j wopret
+notwon:	addi $sp,$sp,-16	# The move didn't win the game, but
+	sw $a0,12($sp)		# unless it leads to disaster it
+	sw $a1,8($sp)		# is still a decent move.
+	sw $t0,4($sp)		# Push everything important...
+	sw $t7,0($sp)
+	addi $a1,$a1,-1
+	xori $a0,$a0,0x17	# Let the computer switch sides.
+	jal wopr		# And see what this move leads to...
+	lw $t7,0($sp)
+	lw $t0,4($sp)
+	lw $a1,8($sp)
+	lw $a0,12($sp)
+	addi $sp,$sp,16		# Pop stuff.
+	ori $t1,$0,0x20
+	sb $t1,field($t0)	# Delete it from the playing field.
+	addi $t1,$0,-255
+	bne $v0,$t1,maybe	# If it's not a winner, see if it's a loser.
+	addi $t7,$t0,1		# It's a winner, return it!
+	j wopret
+maybe:	slt $t1,$0,$v0		# If $t1 is set, this is a really bad move.
+	bne $t1,$0,crap
+	addi $t7,$t0,-9		# This move makes for a draw, keep looking.
+crap:	bne $t0,$0,woprl	# Keep going unless everything's been tried.
+wopret:	ori $v0,$t7,0		# Return the move.
+	lw $ra,0($sp)
+	addi $sp,$sp,4
+	jr $ra
+
+	
+
+
+# findcombination - Checks if the combination $a0 $a1 $a2 of X/O exists.
+# This function is more powerful than it needs to be.
+findcombination:
+	addi $t0,$0,24		# There are 8 places to check. (8*3=24)
+	addi $t1,$0,0
+	addi $v0,$0,0		# Not a match.
+fwinl:	beq $t1,$t0, exitfc
+	lb $t2,test($t1)	# Get coordinate to test.
+	lb $t3,field($t2)	# Read from coordinate.
+	beq $t3,$a0,c1ok	# See if it matches the argument.
+	addi $t1,$t1,3		# Point to the next set of coordinates.
+	j fwinl
+c1ok:	addi $t1,$t1,1
+	lb $t2,test($t1)	# Get coordinate to test.
+	lb $t3,field($t2)	# Read from coordinate.
+	beq $t3,$a1,c2ok	# See if it matches the argument.
+	addi $t1,$t1,2		# Point to the next set of coordinates.
+	j fwinl
+c2ok:	addi $t1,$t1,1
+	lb $t2,test($t1)	# Get coordinate to test.
+	lb $t3,field($t2)	# Read from coordinate.
+	beq $t3,$a2,c3ok	# See if it matches the argument.
+	addi $t1,$t1,1		# Point to the next set of coordinates.
+	j fwinl
+c3ok:	ori $v0,$0,1		# A match has been found.
+	addi $v1,$t1,-2
+	addi $t0,$0,2
+	div $v1,$v1,$t0		# $v1 tells us where the match was found.
+exitfc:	jr $ra
+
+	
+
+# getmove - Reads coordinates from the keyboard and updates playing field.
+getmove:
+	addi $sp,$sp,-4
+	sw $ra,0($sp)		# Save return address.
+	addi $t3,$a1,0		# Remember X/O
+getnew:	addi $a1,$t3,0
+	jal putch
+	la $a0,ge
+	jal print		# Print "X/O, ge...".
+	jal getche		# Get input (1/2/3).
+	ori $t8,$v0,0
+	addi $t8,$t8,-0x31	# Convert ascii to real number.
+	addi $t0,$0,2
+	sltu $t1,$t0,$t8	# If $v0>=3 the input is invalid.
+	bne $t1,$0, badco
+	jal getche		# Get more input (a/b/c).
+	ori $t9,$v0,0
+	addi $t9,$t9,-0x61	# Convert ascii to real number.
+	addi $t0,$0,2
+	sltu $t1,$t0,$t9
+	bne $t1,$0,badco	# Same as last bne.
+	ori $t0,$0,3
+	mul $t0,$t0,$t8		# Multiply y coordinate by 3.
+	add $t0,$t0,$t9		# Add x to y. 
+	add $t0,$a3,$t0		
+	lb $t1,0($t0)		# Check playing field at this position.
+	addi $t2,$0,0x20
+	bne $t2,$t1,badco	# Only allow legal moves (!)
+	sb $t3,0($t0)
+	j coook
+badco:	ori $a1,$0,0xA
+	jal putch
+	jal putch		# Linefeed...
+	addi $a1,$t3,0
+	jal putch
+	la $a0,fel		# Print error message.
+	jal print
+	j getnew		# Try again.
+coook:	lw $ra,0($sp)
+	addi $sp,$sp,4
+	jr $ra
+
+	
+# getplayers - Asks for number of players.
+getplayers:
+	addi $sp,$sp,-4
+	sw $ra,0($sp)		# Save return address.
+redonpl:la $a0,hur		# Get address of "Hur..."-message.
+	jal print		# Print message.
+	jal getche		# Get input.
+	addi $v0,$v0,-0x31	# Convert ASCII to real number -1.
+	beq $v0,$0,oknpl	# 0=1 Player.
+	ori $t0,$0,1
+	beq $v0,$t0,oknpl	# 1=2 Players.
+	ori $a1,$0,0xA		# Line feed.
+	jal putch
+	la $a0,hur		# Get "Hur"-message again.
+	j redonpl
+oknpl:	lw $ra,0($sp)
+	addi $sp,$sp,4
+	jr $ra
+
+
+
+# drawfield - Outputs the playing field to the console.
+drawfield:
+	addi $sp,$sp,-4
+	sw $ra,0($sp)		# Save return address.
+	ori $t2,$0,3		# 3 rows.
+	ori $t4,$0,0
+	la $a0,coor		# Get address of 'a b c'.
+	jal print
+new:	la $a0,line		# Get address of '-------'.
+	jal print
+	ori $t3,$0,3		# 3 columns.
+	xori $a1,$t2,3
+	addi $a1,$a1,0x31	# Convert row number to ascii.
+	jal putch
+	ori $a1,$0,0x20		# Blank.
+	jal putch
+same:	ori $a1,$0,0x7C		# 0x7C = '|'
+	jal putch
+	lb $a1,field($t4)	# Print 'X'/'O'/' '.
+	jal putch
+	addi $t4,$t4,1		# Increment address
+	addi $t3,$t3,-1		# Decrement column-counter.
+	bne $t3,$0,same		# Keep drawing the same row until it's done!
+	ori $a1,$0,0x7C		# 0x7C = '|'
+	jal putch
+	addi $t2,$t2,-1
+	bne $t2,$0,new		# Begin new line.
+	la $a0,line
+	jal print
+	ori $a1,$0,0xA
+	jal putch		# Linefeed...
+	lw $ra,0($sp)
+	addi $sp,$sp,4		# Retrieve $ra.
+	jr $ra
+	
+	
+
+# putch - Outputs 1 character ($a1).
+putch:
+	lw $t1,0xFFFF0008
+	beq $t1,0,putch		# Wait until hardware is ready.
+	sw $a1,0xFFFF000C	# Output the character.
+ .set noreorder
+ nop				# Added to make this work in ÖverDOS.
+ .set reorder
+	jr $ra			# Return.
+
+# print - Outputs a string (($a0)), using putch.
+print:	ori $t0,$ra,0		# Save return address.
+printl:	lb $a1,0($a0)		# Get character from string.
+	beq $a1,$0,endpr	# Stop if the character is '\0'.
+	jal putch		# Output the character.
+	addi $a0,$a0,1		# Increment address.
+	j printl		# Loop.
+endpr:	jr $t0			# Return.
+
+# getche - Reads a character from the keyboard and echoes it to the console.
+getche:	ori $t0,$ra,0		# Save return address.
+getchel:lw $t1,0xFFFF0000
+	beq $t1,$0,getchel	# Wait for input.
+	lw $v0,0xFFFF0004	# Read character.
+	ori $a1,$v0,0
+	jal putch		# Echo read character.
+	jr $t0
+
+
+# clearfield - Clears the playing field.
+clearfield:
+	li $t1,0x20202020	# 0x20=' '
+	sw $t1,field
+	sw $t1,field+4
+	sb $t1,field+8
+	jr $ra
+
+
+
+
+
+
+

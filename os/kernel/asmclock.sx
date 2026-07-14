@@ -1,0 +1,87 @@
+#define RTC_ADDR        0xbff00000
+#define RTC_DATA        0xbff00004
+#define RTC_SECONDS     0
+#define RTC_MINUTES     2
+#define RTC_HOURS       4
+#define RTC_DAYWEEN     6
+#define RTC_DAYMONTH    7
+#define RTC_MONTH       8
+#define RTC_YEAR        9
+#define RTC_A           10
+#define RTC_A_UIP       (1<<7)
+#define RTC_B           11
+#define RTC_B_HF        (1<<1)
+#define RTC_B_DF        (1<<2)
+#define RTC_B_UTI       (1<<7)
+
+	.globl readclock
+	.globl writeclock
+#	.globl readsec
+#	.globl readmin
+#	.globl readhour
+#	.globl readyear
+#	.globl readday
+#	.globl readmonth
+.data
+.text
+
+###########################################################################
+#funkar inte ..
+setformat:
+  formatpoll:
+	lb $t0,RTC_ADDR($0) 
+	andi $t0,$t0,RTC_A_UIP
+	beq $t0,$0,setformat1 
+	j formatpoll
+setformat1: 
+	li $t1,6
+	sb $t1,RTC_DATA($0)
+
+###########################################################################
+#offset in a0, return v0
+
+readclock:	
+	j readpoll
+  readpoll:	
+	li $t0,11
+	sb $t0,RTC_ADDR($0)
+	lb $t0,RTC_DATA($0) 
+	andi $t0,$t0,RTC_A_UIP
+	beq $t0,$0,readsec1 
+	j readpoll
+  readsec1:
+	sb $a0,RTC_ADDR($0)
+	lb $v0,RTC_DATA($0)
+	jr $ra
+###########################################################################
+#offset in a0, value in a1
+writeclock:	
+	j writepoll
+  writepoll:	
+	li $t0,11
+	sb $t0,RTC_ADDR($0)
+	lb $t0,RTC_DATA($0) 
+	andi $t0,$t0,RTC_A_UIP
+	beq $t0,$0,writeclock1 
+	j writepoll
+writeclock1:
+	li $t0,11	    #RTC_B_UTI
+	sb $t0,RTC_ADDR($0) 
+	lb $t0,RTC_DATA($0)
+	ori $t0,$t0,(1<<7)  #setbit 7 in RTC_B_UTI
+	li $t1,11
+	sb $t1,RTC_ADDR($0)
+	sb $t0,RTC_DATA($0) #save RTC_B_UTI
+        ###############################
+	#set data format???
+	sb $a0,RTC_ADDR($0) #offset	
+	sb $a1,RTC_DATA($0) #value 
+	###############################
+	li $t0,11	    #RTC_B_UTI
+	sb $t0,RTC_ADDR($0) 
+	lb $t0,RTC_DATA($0)
+	xori $t0,$t0,(1<<7)  #unsetbit 7 in RTC_B_UTI
+	li $t1,11
+	sb $t1,RTC_ADDR($0)
+	sb $t0,RTC_DATA($0) #save RTC_B_UTI
+	jr $ra

@@ -1,0 +1,139 @@
+######################################################################
+# Spim stuff							     #
+# This crap handles exceptions caused by programs trying to use	     #
+# the spim i/o-registers.					     #
+# It should be considered very experimental and will fail under	     #
+# certain circumstances:					     #
+# (1) The read/write instruction is in a branch delay slot.	     #
+#     This will cause the instruction to be replaced by a nop,	     #
+#	  and execution will continue.				     #
+# (2) A register other than $at is used to address the spim register.#
+#     In this case the exception will be treated as a regular        #
+#     exception (ie the process is killed).			     #
+# Note that spim programs are likely to use static variables, and    #
+# when they do, the behaviour when running several instances of the  #
+# same program is slightly undefined.				     #
+######################################################################
+
+	.globl spim_stuff
+	.globl pcbs
+
+	.extern pcb_executing 4
+	.extern check_stdin 4
+	.extern check_stdout 4
+	.extern spim_send_char 4
+	.extern spim_rec_char 4
+	.extern pass_reg_ra 4
+
+	.data
+
+regtable: .word 0,112,0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,0,0,0,100,104,108
+temp:	  .word 0
+
+
+	.text
+
+spim_stuff:
+	sw $ra,temp
+	
+	lw $s4,pass_reg_at	# $s4 = pcb base!
+
+	lw $t0,116($s4)		# Read PC from PCB.
+
+	li  $t1,0x80000000
+	and $t1,$s0,$t1
+	beq $t1,$0,nobrde	# Are we in a branch delay slot?
+	lw  $s6,4($t0)		# Read the guilty instruction. 
+	b okkk
+
+nobrde:				# $s6 = instruction!
+	lw $s6,0($t0)		# Read the guilty instruction. 
+
+okkk:
+
+	addi $t0,$t0,4		# Increment return address.
+	sw   $t0,116($s4)	# Store PC in PCB.
+
+	lw $s7,112($s4)		# Read the at register.
+				# $s7 = at register!
+
+	andi $t6,$s6,0xFFFF	# Keep only the lower half.
+	add  $s7,$t6,$s7	# Reading address.
+
+	li   $t6,16
+	srl  $s6,$s6,$t6	# Shift the instruction right.
+	andi $s6,$s6,31		# Keep only 5 bits.
+				# $s6 = important register!
+
+	li  $t6,2
+	sll $s6,$s6,$t6
+	lw  $s6,regtable($s6)	# $s6 = position i pcb!
+	add $s6,$s6,$s4		# $s6 = Actual address.
+
+
+	lw $a0,pcb_executing
+	li $s5,0xFFFF0000	# $s5 = "Compare to"
+
+	bne $s7,$s5,not_recv_ctrl
+			
+	jal check_stdin		# Check stdin.
+	b itsdone
+
+not_recv_ctrl:
+	xori $s5,$s5,8
+	bne $s7,$s5,not_trans_ctrl
+	
+	jal check_stdout	# Check stdout.
+	b itsdone
+
+not_trans_ctrl:
+	xori $s5,$s5,4
+	bne  $s7,$s5,not_trans_data
+
+	jal check_stdout	# Check stdout.
+	beq $v0,$0,nochange	# Now we lose output! :( (unlikely to happen) 
+	lw  $a0,0($s6)		# Load the "char".
+	lw  $a1,pcb_executing
+	jal spim_send_char
+	b nochange	
+	
+
+not_trans_data:
+	xori $s5,$s5,8
+	bne $s7,$s5,itsnotspim	
+
+	lw $a0,pcb_executing
+	jal check_stdin
+	beq $v0,$0,itsdone	# If this is true we get bad input!
+	lw $a0,pcb_executing	# Read from mailbox.
+	jal spim_rec_char
+
+itsdone:
+	sw $v0,0($s6)
+	
+nochange:
+
+	li  $t1,0x80000000
+	and $t1,$s0,$t1
+	beq $t1,$0,itsok
+				# Crap! We're in a branch delay slot.
+	lw   $t0,116($s4)	# Get the return address.
+	move $a0,$t0
+	sw   $0,0($t0)		# Write a nop instruction to it.
+
+	addi $t0,$t0,-4
+	sw   $t0,116($s4)
+
+	lw $k0,116($s4)
+	
+	jal spim_failed		# Print warning message.
+itsok:
+	li $v0,1		# Successfully interpreted spim register.
+	b out
+
+itsnotspim:
+	move $v0,$0		# This was not a spim register exception.
+out:
+	lw $ra,temp
+	jr $ra
+

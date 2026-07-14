@@ -1,0 +1,18 @@
+int readclock_sec();
+int readclock_min();
+int readclock_hour();
+int readclock_day_week();
+int readclock_day_month();
+int readclock_month();
+int readclock_year();
+int writeclock_sec(char x);
+int writeclock_min(char x);
+int writeclock_hour(char x);
+int writeclock_day_of_week(char x);
+int writeclock_day_of_month(char x);
+int writeclock_month(char x);
+int writeclock_year(char x);
+int print_clock();
+int print_date();
+int set_time(char hour, char min, char sec);
+int set_date(char year, char month, char day);

@@ -1,0 +1,27 @@
+#################################
+# Timer stuff!!!!		#
+#################################
+
+	.globl driver_timer_init
+	.globl timer_interval
+
+	.data
+timer_interval:
+	.word 0
+
+	.text
+
+#################################################################
+# driver_timer_int						#
+# Sets the timer interrupt to go off every $a0 microseconds.	#
+# Also resets the count register.				#
+#################################################################
+
+driver_timer_init:
+	.set nomove
+	sw $a0,timer_interval
+	mul  $t0,$a0,67		# Multiply microseconds by 67.
+	mtc0 $t0,$11
+	mtc0  $0,$9		# Reset count register.
+	jr $ra
+	.set move

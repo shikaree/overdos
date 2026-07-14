@@ -1,0 +1,125 @@
+	.globl pass_reg_ra
+	.globl pass_reg_at
+	.globl save_regs
+	.globl restore_regs
+	.extern dontsaveregs 4
+	.extern pcb_executing  4
+	.extern sizeof_pcb 4
+	.globl pcbs
+	.data
+pass_reg_ra:
+	.word 0
+pass_reg_at:
+	.word 0
+	.text
+	.set nomove
+
+######################################################################
+# save_regs (bloody important stuff)				     #
+# Stores the registers of the (currently not) running process in     #
+# it's PCB. It is assumed that at has been stored in pass_reg_at,    #
+# and that $ra has been stored in pass_reg_ra (since $ra is 	     #
+# destroyed when the function is called).			     #
+# Also stores a pointer to the current pcb in pass_reg_at. :(	     #
+######################################################################
+
+save_regs:
+	lw $k0,pcb_executing	# Get number of pcb of running process.
+	lw $k1,sizeof_pcb
+	mul $k0,$k0,$k1   	# Multiply to get offset within array.
+	la $k1,pcbs		# Get address of pcbs.
+	add $k0,$k0,$k1		# Add offset to get actual address.
+	sw $2,0($k0)		# $at is saved further down.
+	sw $3,4($k0)
+	sw $4,8($k0)
+	sw $5,12($k0)
+	sw $6,16($k0)
+	sw $7,20($k0)
+	sw $8,24($k0)
+	sw $9,28($k0)
+	sw $10,32($k0)
+	sw $11,36($k0)
+	sw $12,40($k0)
+	sw $13,44($k0)
+	sw $14,48($k0)
+	sw $15,52($k0)
+	sw $16,56($k0)
+	sw $17,60($k0)
+	sw $18,64($k0)
+	sw $19,68($k0)
+	sw $20,72($k0)
+	sw $21,76($k0)
+	sw $22,80($k0)
+	sw $23,84($k0)
+	sw $24,88($k0)
+	sw $25,92($k0)
+#	sw $28,96($k0)
+	sw $29,100($k0)
+	sw $30,104($k0)
+	mfc0 $t0,$14		# Read PC register from EPC.
+	.set noreorder
+	nop
+	nop
+	nop
+	.set reorder
+	sw $t0,116($k0)		# Store PC in PCB.
+	lw $t0,pass_reg_ra($0)
+	sw $t0,108($k0)
+	lw $t0,pass_reg_at
+	sw $t0,112($k0)		# Save registers starting at offset 16.
+	sw $k0,pass_reg_at	# Ugly stuff.
+	j dontsaveregs
+
+######################################################################
+# restore_regs							     #
+# Loads registers from the pcb of the process that is about to	     #
+# resume execution. Since $ra needs to contain the return address,   #
+# the $ra read from the pcb is stored in $k1.			     #
+######################################################################
+
+restore_regs:
+	lw $k0,pcb_executing
+	lw $k1,sizeof_pcb
+	mul $k0,$k0,$k1
+	la $k1,pcbs
+	add $k0,$k0,$k1		# $k0 now contains address of pcb.
+	lw $t0,116($k0)		# Load PC from PCB.
+	.set noreorder
+	mtc0 $t0,$14		# Store PC in EPC.
+	nop
+	nop
+	nop
+	nop
+	.set reorder
+	lw $1,112($k0)           # Load registers starting at offset 16.
+	lw $2,0($k0) 
+	lw $3,4($k0) 
+        lw $4,8($k0)  
+	lw $5,12($k0)  
+        lw $6,16($k0)  
+        lw $7,20($k0)  
+        lw $8,24($k0)  
+	lw $9,28($k0)  
+        lw $10,32($k0) 
+        lw $11,36($k0)
+        lw $12,40($k0) 
+        lw $13,44($k0)
+        lw $14,48($k0)
+	lw $15,52($k0) 
+        lw $16,56($k0) 
+        lw $17,60($k0) 
+        lw $18,64($k0) 
+        lw $19,68($k0) 
+        lw $20,72($k0) 
+        lw $21,76($k0)   
+        lw $22,80($k0)
+	lw $23,84($k0)
+        lw $24,88($k0)
+        lw $25,92($k0)
+#        lw $28,96($k0)
+        lw $29,100($k0)
+        lw $30,104($k0)
+        lw $k1,108($k0)
+	jr $ra
+
+	.set move

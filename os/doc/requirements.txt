@@ -1,0 +1,178 @@
+> Requirement 1: The kernel shall provide processes which execute some 
+> specified code. Processes shall be able to create other processes, which are 
+> called children. The process that created another process is called its 
+> parent. It shall be possible to delete processes
+
+Requirement fullfilled completely.
+A process is able to create/delete process by using the syscalls 
+create_process() and kill_process().
+
+> Requirement 2: It shall be possible to assign priorities to processes. The 
+> scheduling policy shall be highest priority first. If there are more than
+> one process that have the highest priority, thus having equal priority, 
+> they shall be scheduled with round robin.
+
+The create_process() syscall sets the priority of the created process
+according to the argument given. The scheduler employs hpf and rr as
+required.
+
+> Requirement 3: It shall be possible to delay a process for a specified time.
+> This means that the process will not be able to execute until the specified 
+> time has elapsed.
+
+The sleep() syscall enables a process to block itself a number of microseconds.
+
+> Requirement 4: It shall be possible to obtain information about a process,
+> such as name(if any) and state.
+
+The syscalls get_priority(), set_priority(), get_name(), get_status() and 
+get_parent() enables processes to query the kernel about other processes.
+
+> Requirement 5: The kernel shall provide mailboxes, which are created by
+> processes with an initial capacity, the maximum number of messages a 
+> mailbox can contain. In particular, it shall be possible to have a mailbox 
+> of capacity zero. Processes shall be able to send and receive messages to
+> and from a mailbox, with copy semantics. Processes shall be able to delete
+> mailboxes.
+
+A number of preallocated mailboxes are provided. Every process is allocated
+2 maiboxes for stdin and stdout which they may not close. Create/send/receive/
+delete-syscalls are implemented and zero-size mailboxes are supported.
+
+> Requirement 6: Sending to a full mailbox blocks a process until it is
+> possible to send the message. This occurs when some other process receives
+> from the mailbox and there are no other processes that should send to the
+> mailbox first. Receiving to an empty mailbox blocks a process until it is.
+> possible to receive a message. This occurs when some other process sends to 
+> the mailbox and there are no other processes that should receive from the
+> mailbox first. Note that if the capacity is zero, the message is transfered 
+> directly from the sender to the receiver without (conceptually) being stored 
+> in the mailbox.
+
+Blocking at full mailbox is implemented. Zero-sizes mailboxes are treated
+just as a normal mailbox by allocating a mailbox message but it doesn't 
+increase the message counter (it always remains 0).
+
+> Requirement 7: It shall be possible to write reasonable distributed programs
+> in the sense that there shall be mechanisms to set up a set of processes 
+> with mailboxes such that they form a selected network.
+
+This is supported by the fact that create_mbox can be called several times
+from different processes and still return the same mailbox number. This
+allows several instances of one process to share one common mailbox.
+This mailbox is not removed until all of the processes have deleted 
+the mailbox or exited.
+
+> Requirement 8: Input to and output from a processes shall be provided 
+> through some kind of mailboxes.
+
+The kernel uses the stdin/stdout mailboxes of every process to send/
+receive message from the UART.
+
+> Requirement 9: The user shall be able to use the keyboard for input to
+> processes and see the output from processes on the screen.
+
+Supported.
+
+> Requirement 10: The user shall be able to distinguish the output from 
+> different processes on the screen. This can be done for instance by some 
+> indications on what processes the output comes from, or by letting the user
+> choose which processes to see the output from. In the latter case, the 
+> output from a process may not be directly visible, but is output when the 
+> user selects this process.
+
+The user selects a process to give output and receive input using the ` key.
+
+> Requirement 11: The user shall be able to choose which process that
+> receives input from the keyboard and shall be able to determine from the 
+> screen which process is currently receiving input from the keyboard.
+
+The name of the process that has received focus is displayed when the user
+presses the ` key.
+
+> Requirement 12: A mailbox shall be removed if no process has access to it. 
+> It shall be defined when a process gets access to a mailbox and a process 
+> that deletes a mailbox shall lose access to that mailbox. If a process is
+> deleted, it loses access to all its mailboxes. Thus, it shall not be 
+> necessary for a process to delete mailboxes explicitly before exiting 
+> (i.e. deleting itself). Conversely, a mailbox shall not be removed and be
+> usable if some process has access to it.
+
+The syscalls send_msg() and receive_msg() ensures that no message may be
+sent to an unallocated mailbox. Every mailbox has a usage counter that is
+increased when a new process requests access to it and decreased when a
+process releases it. When the counter reaches 0 the mailbox is deleted.
+All mailboxes are deleted at program exit.
+
+> Requirement 13: There shall be a system clock with services to read and 
+> write.
+
+Fully implemented by the rclock_* and wclock_* syscalls.
+
+> Requirement 14: Process shall not be permitted to use shared memory. This
+> must not be enforced by the kernel, but it shall not be a valid use of the
+> system. This means that processes can not use global variables, if all
+> instances of a program use the same memory for global variables.
+
+Global variables are shared among all processes and the kernel. This means
+that programs can not use global variables for anything but reading (unless
+the desire to create unexpected results is overwhelming). Using global
+variables as shared memory probably works, but it is not a valid use of the
+system.
+
+> Requirement 15: It shall be possible to execute several instances of the
+> same program with no interference between them. This means that global
+> variables can not be used for communication between parent and children.
+> It also means that if names are used to identify mailboxes or processes, 
+> they have to be constructed dynamically such that each instance get unique
+> names.
+
+The stdin/stdout mailboxes are constructed dynamically. But if a process
+uses for example a common communication mailbox it is responsible
+for creating an unique mailbox name (by using its pin or parent).
+
+> Requirement 16: There may be limits on the number of processes and 
+> mailboxes, but these must be easy to modify.
+
+There are limits, but they are easily changed in the Makefile.
+
+> Requirement 17: There shall be a command interpreter where at least the
+> following shall be possible:
+>
+> Start processes. For example, it shall be possible to start another 
+> interpreter. Read from and write to the system clock. Change priority of 
+> processes. Obtain information about present processes. Delete processes.
+>
+> Note that it shall be possible to start several processes. This means that 
+> the user must be able to use the shell again even if a started process has
+> not finished.
+
+Both Bärs and Visky supports all required commands (except date functions
+which are only supported by Visky). A process executed from the shell does 
+not inherit stdin/stdout mailboxes but gets focus immediately, thus focus 
+can be changed manually back to the shell.
+
+Another instance of Visky can be started using the ' key. This new Visky will
+has no parent (-1). 
+
+Starting another instance of a shell from the shell is not a problem.
+
+> Requirement 18: There shall be a program starting two processes that shares 
+> a mailbox. One process shall be a producer, writing to the mailbox, and the
+> other shall be a consumer, reading from the mailbox and writing the result
+> to the screen. There shall be random delays (you may use the clock) between 
+> reads and between writes, such that the mailbox is tested throughly. The
+> capacity of the mailbox shall be given when starting the program.
+
+The application prodcons does just that.
+
+> Requirement 19: The shall be a dining philosophers program which is a 
+> program solving a problem with resource sharing as follows. A group of 
+> philosophers are sitting around a dining table (formed as a circle). 
+> Between each pair of philosophers is one fork. Occasionally, one 
+> philosopher wants to eat and to do that he needs two forks. This means that
+> two philosophers sitting next to each other can not eat at the same time.
+
+Phil is a dining philosophers program solving the problem. It uses 
+5 "threads" (phil_th). Any number of instances of phil may be started.
+

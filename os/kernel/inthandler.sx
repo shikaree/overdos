@@ -1,0 +1,200 @@
+#################################################
+# Interrupt handler				#
+# This is supposed to handle interrupts.	#
+# Currently the only supported interrupts are:	#
+# - Timer interrupts				#
+# - I/O interrupts				#
+# - Syscalls					#
+# - Spim register exceptions (TLBL/TLBS).	#
+#################################################
+
+#define _UART_H_ASM
+#include <uart.h>
+#undef _UART_H_ASM
+	.globl inthandler
+	.globl timer_counter
+	.globl dontsaveregs
+	.globl sp_holder
+	.extern pcb_executing 4
+	.extern skeletor 4
+	.extern send 4	
+	.extern save_regs 4
+	.extern restore_regs 4
+	.extern pass_reg_ra 4 
+	.extern pass_reg_at 4	
+	.extern uart_int 4
+	.extern pcb_idleloop 4
+	.extern idleloop 4
+	.extern syscall 4
+	.extern ledd 4
+	.extern itoa_wrap 4
+	.extern bluescreen 4
+	.extern process_timer 4
+	.extern spim_stuff 4
+	.extern timer_interval 4
+	.data
+
+kpstr:		.ascii "KP"
+itoabuf:	.asciiz "ooooooooooooooo"
+		.align 2
+timer_counter:	.word 0
+io_counter:	.word 0
+sp_holder:	.word 0
+fuck:		.word 0
+
+	.text
+	.set nomove
+
+inthandler:
+	mfc0 $k0,$12
+	addi $k1,$0,-2
+	and $k0,$k0,$k1
+	mtc0 $k0,$12 		# Disable interrupts.... :(
+	la $gp,_gp
+
+# First we save _all_ registers to the pcb of the running process.
+	la $k0,pass_reg_at
+	sw  $at,0($k0)		# at needs to be copied immediately!
+	sw  $ra,pass_reg_ra	# ra is about to be destroyed by jal.
+	lw  $ra,pcb_idleloop	# If no process was running,
+	bne $ra,$0,dontsaveregs	# don't save any registers.
+
+	j save_regs		# Save registers. Now we can do anything!
+
+dontsaveregs:
+	lw $sp,sp_holder	# Get kernel stack.
+
+# Since everything has been saved we'll try to limit our usage of registers
+# to the sx registers. That way we don't have to push anything when calling
+# functions written in C.
+
+# Now we try to figure out what's going on...
+
+	mfc0 $s0,$13		# s0 contains the cause register.
+
+	andi $s1,$s0,124	# s1 contains the exception code.
+	beq  $s1,$0,exc_interrupt # This is an interrupt
+	andi $t1,$s1,32
+	bne  $t1,$0,syscall_exc
+	addi $t2,$s1,-8  	# Is this TLBL?
+	beq  $t2,$0,itsspim
+	addi $t2,$t2,-4		# Is it TLBS?
+	beq  $t2,$0,itsspim
+	b kernel_panic
+
+itsspim:
+	jal spim_stuff
+	beq $v0,$0,kernel_panic
+
+	j resume_exec
+
+
+### Syscall ##########################################################
+
+syscall_exc:
+	jal syscall		# This must be a syscall
+	lw $t1,pass_reg_at
+	lw $t0,116($t1)		# Store PC in PCB.
+	addi $t0,$t0,4		# Increment return address.
+	sw $t0,116($t1)		# Store PC in PCB.
+	sw $v0,0($t1)
+
+	xori $s0,$s0,32
+
+	j resume_exec
+
+### Kernel Panic #####################################################
+
+kernel_panic:
+	# Kernel panic - unsupported interrupt
+	# Resume execution and pretend that nothing has happened.
+	li $t0,2
+	srl $s5,$s1,$t0
+	la $a0,itoabuf
+	move $a1,$s5
+	jal itoa_wrap
+	la $a0,kpstr
+	jal ledd
+	mfc0 $a1,$14
+	move $a0,$s5
+	jal bluescreen
+
+	lw $t0,pass_reg_at
+	la $t1,idleloop
+	sw $t1,116($t0)
+
+	jal  restore_regs
+	addi $ra,$k1,0		# Restore the value of $ra
+	eret
+
+exc_interrupt:
+	andi $s2,$s0,32768	# Is this a timer interrupt?
+	beq  $s2,$0, not_timer
+	
+### Timer interrupt ##################################################
+
+	lw   $t7,timer_counter
+	addi $t7,$t7,1		# Increment timer_counter
+	sw   $t7,timer_counter
+	
+	# Force output.
+	li $a0,33
+	jal uart_int
+
+	mfc0 $s3,$11		# Read from compare.
+	mtc0 $s3,$11		# Write the same value back. (?)
+	mtc0 $0,$9		# Reset count register.
+
+
+	# LED operation
+	jal driver_led_int
+	jal process_timer	
+
+	jal schedule		# Context switch
+
+	xori $s0,$s0,32768	# Reset the IP bit.
+
+	j resume_exec
+
+not_timer:
+	andi $s2,$s0,4096+8192	# Is this an I/O interrupt?
+	beq  $s2,$0,not_io
+	
+### I/O interrupt ####################################################
+
+# These shouldn't occur, but the code is here if we decide to use
+# them some day...
+
+	addi $t0,$0,3
+	sw $t0,UART_ICR
+
+	ori $s0,$s0,4096+8192
+	xori $s0,$s0,4096+8192
+
+	li $a0,0
+	jal  uart_int
+	j resume_exec
+
+not_io:				# This is a disaster.
+
+	j resume_exec
+
+# We don't support any other interrupts.
+# Return to the interrupted process
+
+resume_exec:
+	mtc0 $s0,$13
+
+notstuff:
+
+	jal  restore_regs
+
+	addi $ra,$k1,0		# $ra again...
+
+	mfc0 $k0,$12
+	ori  $k0,$k0,1
+	mtc0 $k0,$12		# Enable interrupts.
+
+	eret
+
+	.set move

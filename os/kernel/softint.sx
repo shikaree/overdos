@@ -1,0 +1,15 @@
+	.globl interrupt
+	.text
+	.set nomove
+
+###########################################################
+# interrupt						  #
+# Tiny function that generates an interrupt.		  #
+# Only used by syscall wrappers.			  #
+###########################################################
+
+interrupt:
+	syscall
+	jr $ra
+
+	.set move

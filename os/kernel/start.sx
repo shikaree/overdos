@@ -1,0 +1,19 @@
+	.extern init 4
+	.extern getkernelstack 4
+	.extern skeletor 4
+	.extern sp_holder 4
+	.globl __start
+	.text
+
+__start:
+	la $gp,_gp
+	sw $sp,sp_holder
+
+	mfc0 $t0,$12
+	li $t1,32768+16384+8192+4096+2048+1024+512+256+1
+	or $t0,$t0,$t1
+	xori $t0,$t0,16384+8192+2048+1024+512+256+1
+	mtc0 $t0,$12
+
+	jal init
+

@@ -1,0 +1,23 @@
+/* 
+   Idleloop waiting for interrupt in the kernel.
+*/
+
+	.extern pcb_idleloop 4
+	.extern intmode_enable 4
+
+	.globl idleloop
+	
+ 	.text
+
+idleloop:
+	li $t0,1			# Set in idleloop.
+	sw $t0,pcb_idleloop($zero)
+
+	# Enable interrupts.
+	jal intmode_enable
+
+	# Loop until interrupted.
+loop:	
+	j loop	
+
+	

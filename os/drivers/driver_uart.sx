@@ -1,0 +1,86 @@
+# -------------------------------------------------------------------- 
+# - Winbond W89777 Driver for ÖverDOS                                - 
+# --------------------------------------------------------------------
+
+#include <mips/regdef.h>
+#define _UART_H_ASM
+#include <uart.h>
+#undef _UART_H_ASM
+
+	.globl driver_uart_init
+	.globl driver_uart_send
+	.globl driver_uart_receive
+	.data
+	.text
+	.set nomove 	
+
+
+		
+# --- int uart_init(void) ---
+# Sets up interrupt for UART.
+driver_uart_init:
+	# Set POLLED I/O.
+	lw $t1,UART_ICR
+	ori $t1,$t1,3
+	xori $t1,$t1,3
+	sw $t1,UART_ICR
+
+	# Set interrupt for IRQ3
+	lw $t1,UART_IMR
+	ori $t1,$t1,8
+	sw $t1,UART_IMR
+
+	# Interrupt 1 for COM1
+	lw $t1,UART_IXR0
+	ori $t1,$t1,192
+	xori $t1,$t1,64
+	sw $t1,UART_IXR0
+
+	jr $ra
+
+
+
+# --- int driver_uart_send(char b) ---
+# Tries to send to the uart. Returns 1 if sent
+# and 0 if not.
+driver_uart_send:
+	lw $t0,UART_USR
+	andi $t0,$t0,32
+	beq $t0,$zero,driver_uart_send
+	# Output is available.
+	# Write the byte to TBR.
+	sw $a0,UART_TBR	
+	# Give it some time.
+	.set noreorder
+	nop
+	nop
+	nop
+	.set reorder
+	# We wrote.
+	li $v0,1
+	jr $ra
+driver_uart_send_unable:
+	li $v0,0
+	jr $ra	
+
+
+
+# -- int driver_uart_receive(void) ---
+# Tries to receive from the uart. Returns the
+# byte if successfull and -1 if not.
+driver_uart_receive:
+        # Check USR if data is avaliable.
+	la $t0,UART_USR
+	lw $t0,0($t0)
+	andi $t1,$t0,1
+	bne $t1,$zero,driver_uart_receive_can
+	# Nothing to receive.
+	li $v0,-1
+	jr $ra
+driver_uart_receive_can:
+	# Get the byte.	
+	la $t0,UART_RBR
+	lw $v0,0($t0)
+	jr $ra
+
+

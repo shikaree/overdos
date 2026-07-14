@@ -1,0 +1,150 @@
+ÖverDOS programmers manual
+
+Every application is by the kernel given a stack of a predefined
+size (default is 65536).
+All applications should be placed in apps/ and have their main-function
+called something like main_program, where program is the name of the 
+application.
+To be able to run an application it must be inserted into the array
+files[] in fs.c, the switch-statement and a declaration of the main-
+function of the application must also be present in fs.c.
+
+An application can access kernel functions and memory, but shouldn't. 
+Accessing kernel functions is not a valid use of the system and accessing 
+kernel memory is not recommended. Use instead the provided syscall-functions
+in os.h.
+
+A program written in assembly language may not use the syscall-instruction,
+it must also call the syscall-functions in os.h.
+
+Syscalls avaliable to all applications:
+
+int create_process(char *name, int priority)
+ Creates a new process identified from the files[]-array with name and
+ with specified priority. If the process couldn't be started, the function
+ returns -1, otherwise it returns the PIN of the new process.
+
+int kill_process(int nr)
+ Kills the process with specified pin (nr). If the pin is -1 the process
+ itself is killed.
+ If successfull it returns TRUE (1), else FALSE (0).
+
+int set_priority(int nr, int prior)
+ Sets the priority of process (nr) to (prior).
+ Returns TRUE if successful, FALSE if not.
+
+int get_priority(int nr);
+ Returns the priority of process (nr) if successful, otherwise -1.
+
+int get_name(char *buffer,int nr);
+ Writes the name of process (nr) to (buffer). Buffer should be able to hold
+ at least 10 characters.
+ Returns TRUE if successful, FALSE if not.
+
+int get_parent(int p);
+ Returns the pin of the parent of process (p).
+ If (p) is an invalid pin, or if process (p) has no parent -1 is returned.
+
+int get_pin(void);
+ Returns the pin of the calling process.
+
+int get_state(int p);
+ Returns the state of process (p).
+   0 - Process is running.
+ 128 - Process is blocked
+  -1 - Process does not exist.
+
+int give_focus(int p);
+ Give focus to process (p). This will only work when the calling process
+ has focus and process (p) exists. Returns TRUE if successful, FALSE if not.
+
+
+int create_mbox(int size,char *name);
+ Creates a mailbox of size (size) with the name "name". If a mailbox with this
+ name already exists, the size argument is discarded, and the calling process
+ is registered as one of the owners of this mailbox.
+ Returns the number of the created mailbox, or -1 if unsuccessful.
+
+int destroy_mailbox(int nr);
+ Removes mailbox (nr) from the calling process' list of used mailboxes.
+ If no other processes use this mailbox, the mailbox is deleted entirely.
+ Returns -1 if unsuccessful, and something else if successful.
+
+int send_msg(char *msg, int size, int nr);
+ Sends (size) characters pointed to by (msg) to mailbox (nr).
+ Returns the number of characters copied, or -1 if the size of the mailbox was
+ zero. This function is never unsuccessful, but the calling process may get
+ blocked for an unspecified period of time. 
+
+int receive_msg(char *buffer, int nr);
+ Receives a message from mailbox (nr) and writes it to (buffer). (buffer)
+ should be large enough to hold whatever is contained in the mailbox.
+ Returns the number of characters received. As with send_msg, receive_msg may
+ cause the calling process to get blocked.
+
+int receive_msg_cond(char *buffer, int nr);
+ Similar to receive_msg, but does not allow the calling process to get blocked.
+ Instead it returns ERR if the mailbox was empty.
+ 
+
+int led(char *buffer, int size);
+ Sends (size) characters from (buffer) to the LED driver. This will fail if the
+ calling process does not have focus. Returns the number of characters sent,
+ or -1 if unsuccessful.
+
+int get_timer(void);
+ Returns the number of occured timer interrupts since power-on.
+
+int get_timer_interval(void);
+ Returns the number of microseconds that are supposed to pass between timer
+ interrupts.
+
+void sleep(int t);
+ Blocks the calling process until (t) microseconds have passed.
+
+void get_uptime (int *days, int *hours, int *minutes);
+ Writes the current uptime to (days), (hours) and (minutes).
+
+int register_focusswitch(int *switchvar);
+ Tells the kernel to set the variable (switchvar) according to the focus
+ situation of the calling process whenever the process receives or loses
+ focus. (switchvar) is set to 1 when the process receives focus, and 2 then
+ it loses focus.
+
+int rclock_sec();
+  Returns second value from the clock
+int rclock_min();
+  * minutes
+int rclock_hour();
+  * hour
+int rclock_day_week();
+  * day of week
+int rclock_day_month();
+  * day of month
+int rclock_month();
+  * month
+int rclock_year();
+  * year
+int wclock_sec(char sec);
+  Writes sec value to the clock
+int wclock_min(char min);
+  * min
+int wclock_hour(char h);
+  * hour
+int wclock_day_week(char d);
+  * day of week
+int wclock_day_month(char d);
+  * day of month
+int wclock_month(char m);
+  * month
+int wclock_year(char y);
+  * year
+
+int dir_length(void);
+ Returns the number of available applications.
+
+int dir_index(char *name, int index);
+ Writes the name of application (index) to (name).
+
+void reboot(void);
+ Returns execution to Pmon.

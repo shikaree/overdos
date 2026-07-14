@@ -1,0 +1,30 @@
+########################################### 
+# Functions to enable/disable interrupts. #
+###########################################
+
+#define _UART_H_ASM
+#include <uart.h>
+#undef _UART_H_ASM
+	
+
+	.globl intmode_enable
+	.globl intmode_disable
+	.text			
+
+	.set nomove
+intmode_disable:
+	mfc0 $t0,$12
+	addi $t1,$0,-4
+	and $t0,$t0,$t1
+	ori $t0,$t0,2
+	mtc0 $t0,$12
+	jr $ra
+
+intmode_enable:
+	mfc0 $t0,$12
+	addi $t1,$0,-4
+	and $t0,$t0,$t1
+	ori $t0,$t0,32769
+	mtc0 $t0,$12
+	jr $ra
+	.set move

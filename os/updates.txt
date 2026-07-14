@@ -1,0 +1,94 @@
+# Håll inte den här filen öppen!
+
+020120 20:45:00
+	alla: OS:et färdigt.
+
+011119 xx:xx:xx
+	andreas/johannes:
+ 		 Interruptbaserad I/O funkar.
+		 Printf/cprintf funkar skitfint.
+
+	martin/pablo:
+		 Klockdrivrutin klar (?) // Andreas
+
+011112 21:00:00
+
+	andreas/johannes:
+		 Kärnan bootar.
+
+		 Interrupthandlern fungerar.
+		 Schedulern fungerar.
+		 Proc fungerar.
+		 Flera processer kan köra samtidigt.
+		 Pollad output via UART fungerar.
+		 Problem med gp/sp fixade.		
+
+		 Filsystemet helt omskrivet.
+		
+		 Fix i mbox_init, men mbox och
+		 interrupthanterad input/output ej
+		 implementerad fullt ut än.
+
+		 Redovisning i morgon.
+
+011129 02:38:37	
+	
+	andreas: Nibbles! 
+		 Lite problem med getchar() bara, men
+		 det fixar sig i ÖverDOS. Bara problem
+		 under Unix...
+
+011128 13:54:19
+
+	andreas: Filsystemet (helt) klart i går kväll.
+		 bin2c-kompilering inlagt i Makefile.
+
+011127 16:34:00
+
+	johannes: inthandler.sx kompilerar, men någon borde
+		  skriva en syscall-hanterare, för just nu
+		  skickas alla syscalls åt helvete!
+
+011127 16:27:58
+
+	andreas: Första försök till en UART-driver.
+		 Går igenom kompileringen iaf.
+
+011127 16:22:19
+
+	johannes/andreas: cprintf.c vt100.h ansi-mod.h
+			  Det borde kompilera!  
+
+011127 lite tidigare
+
+	johannes: interrupthandlern skickar syscalls till syscall.
+
+011124 03:31:30
+
+	andreas: VT100-funktioner klara (använd endast vt100.h),
+		 gotoxy, cls och (ANSI) färghantering ingår.
+		 Fix för printf så den flushar bufferten i slutet
+		 snyggare.
+		 Fixade kompileringsfel i mbox.c, fast de skriver
+		 väl pablo över antar jag.
+
+011122 22:20:20
+
+        martin:  Uppdaterade pcb.h, pcb.c
+                 Lade till bitarrayops.h
+                 Lade till bitarrayops.c i lib
+
+011122 21:51:00
+
+	johannes: Interrupthandlern assemblerar, man fungerar
+		  definitivt inte!
+
+011122 20:53:00
+
+	johannes: Fixade den (numera) fullkomligt genialiska makefilen!
+		  Den knäcker!!
+
+011122 20:27:00
+
+	andreas: Skapade commit-bibliotek.
+		 Fixade till alla kompileringsfel.
